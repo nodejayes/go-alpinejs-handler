@@ -53,7 +53,7 @@ func (ctx *CounterHandler) Handle(msg goalpinejshandler.Message, res http.Respon
 
 	messagePool.Add(goalpinejshandler.ChannelMessage{
 		ClientFilter: func(client goalpinejshandler.Client) bool {
-			return client.ID == req.Header.Get("clientId")
+			return true
 		},
 		Message: goalpinejshandler.Message{
 			Type:    fmt.Sprintf("[%s] update", ctx.GetName()),

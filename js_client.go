@@ -71,7 +71,10 @@ window.alpinestorehandler.eventHandler = (function() {
 	function getClientId(key) {
 		let clientId = localStorage.getItem(key);
 		if (!clientId) {
-			clientId = v4();
+			if (!crypto || typeof crypto.randomUUID !== 'function') {
+				throw new Error('Crypto API not supported');
+			}
+			clientId = crypto.randomUUID();
 			localStorage.setItem(key, clientId);
 		}
 		return clientId;

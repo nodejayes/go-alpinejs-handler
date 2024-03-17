@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -57,67 +58,79 @@ func setupScripts(router *http.ServeMux, config *Config) {
 
 func setupOutgoing(router *http.ServeMux, config *Config) {
 	router.HandleFunc(fmt.Sprintf("GET %s", config.EventUrl), func(res http.ResponseWriter, req *http.Request) {
-		clientStore := di.Inject[clientStore]()
-		clientID := req.URL.Query().Get(config.ClientIDHeaderKey)
-		_, err := uuid.Parse(clientID)
-		if err != nil {
-			jsonResponse(res, http.StatusBadRequest, Response{
-				Code:  http.StatusBadRequest,
-				Error: "clientId not found in header",
-			})
-			return
-		}
-		clientStore.Add(Client{
-			ID:       clientID,
-			Response: res,
-			Request:  req,
-		})
-		go func() {
-			time.Sleep(time.Duration(config.SendConnectedAfterMs) * time.Millisecond)
-			messagesPool.Add(ChannelMessage{
-				Message: Message{
-					Type:    "connected",
-					Payload: clientID,
-				},
-				ClientFilter: func(client Client) bool {
-					return client.ID == clientID
-				},
-			})
-		}()
-
 		res.Header().Set("Content-Type", "text/event-stream")
 		res.Header().Set("Cache-Control", "no-cache")
 		res.Header().Set("Connection", "keep-alive")
 
+		clientStore, clientID, failRegisterInClient := registerInClientStore(req, config, res)
+		if failRegisterInClient {
+			return
+		}
+
+		requestClosed := false
+		closeLocker := &sync.Mutex{}
+		go func() {
+			<-req.Context().Done()
+			closeLocker.Lock()
+			requestClosed = true
+			clients := clientStore.Get(func(client Client) bool { return client.ID == clientID })
+			if len(clients) > 0 {
+				for _, client := range clients {
+					clientStore.Remove(client)
+				}
+			}
+			closeLocker.Unlock()
+		}()
+
+		sendConnectedInfo(config, clientID)
+
 		for msg := range messagesPool.Pull() {
+			if requestClosed {
+				return
+			}
 			client := clientStore.Get(msg.ClientFilter)
 			if len(client) < 1 {
 				continue
 			}
-			message, err := json.Marshal(msg.Message)
-			if err != nil {
-				continue
-			}
-			data, err := formatMessage(string(message))
-			if err != nil {
-				fmt.Println(err.Error())
-				continue
-			}
-			res.Write([]byte(data))
-			rc := http.NewResponseController(res)
-			err = rc.Flush()
-			if err != nil {
-				println(err.Error())
-				flusher, ok := res.(http.Flusher)
-				if !ok {
-					println("flusher not supported")
-					continue
-				}
-				flusher.Flush()
-				continue
+			for _, c := range client {
+				c.SendMessage(msg)
 			}
 		}
 	})
+}
+
+func sendConnectedInfo(config *Config, clientID string) {
+	go func() {
+		time.Sleep(time.Duration(config.SendConnectedAfterMs) * time.Millisecond)
+		messagesPool.Add(ChannelMessage{
+			Message: Message{
+				Type:    "connected",
+				Payload: clientID,
+			},
+			ClientFilter: func(client Client) bool {
+				return client.ID == clientID
+			},
+		})
+	}()
+}
+
+func registerInClientStore(req *http.Request, config *Config, res http.ResponseWriter) (*clientStore, string, bool) {
+	clientStore := di.Inject[clientStore]()
+	clientID := req.URL.Query().Get(config.ClientIDHeaderKey)
+	_, err := uuid.Parse(clientID)
+	if err != nil {
+		jsonResponse(res, http.StatusBadRequest, Response{
+			Code:  http.StatusBadRequest,
+			Error: "clientId not found in header",
+		})
+		return nil, "", true
+	}
+	clientStore.Add(Client{
+		ID:       clientID,
+		Response: res,
+		Request:  req,
+	})
+	return clientStore, clientID, false
 }
 
 func setupIncoming(router *http.ServeMux, config *Config) {
