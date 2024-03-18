@@ -143,7 +143,22 @@ func getAppScript(config Config) string {
 	`, config.ActionUrl, config.EventUrl, config.ClientIDHeaderKey, config.SocketReconnectInterval))
 	buf.WriteString("document.addEventListener('alpine:init', () => {")
 	for _, h := range config.Handlers {
-		buf.WriteString(fmt.Sprintf(`
+		writeStore(buf, h.GetName(), h.GetDefaultState(), h.GetActionType())
+	}
+	buf.WriteString("});")
+	return buf.String()
+}
+
+func HeadScripts() string {
+	return `
+	<script src="//unpkg.com/alpinejs" defer></script>
+	<script src="/alpinestorehandler_lib.js"></script>
+	<script src="/alpinestorehandler_app.js"></script>
+	`
+}
+
+func writeStore(buf *bytes.Buffer, name, defaultState, actionType string) {
+	buf.WriteString(fmt.Sprintf(`
 			Alpine.store('%[1]s', {
 				state: %[2]v,
 				emit(payload) {
@@ -159,16 +174,5 @@ func getAppScript(config Config) string {
 			window.alpinestorehandler.eventHandler.subscribe('[%[1]s] update', (payload) => {
 				Alpine.store('%[1]s').update(payload);
 			});
-		`, h.GetName(), h.GetDefaultState(), h.GetActionType()))
-	}
-	buf.WriteString("});")
-	return buf.String()
-}
-
-func HeadScripts() string {
-	return `
-	<script src="//unpkg.com/alpinejs" defer></script>
-	<script src="/alpinestorehandler_lib.js"></script>
-	<script src="/alpinestorehandler_app.js"></script>
-	`
+		`, name, defaultState, actionType))
 }

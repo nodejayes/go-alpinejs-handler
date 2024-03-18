@@ -11,6 +11,8 @@ import (
 	di "github.com/nodejayes/generic-di"
 )
 
+const ContentTypeKey = "Content-Type"
+
 var messagesPool = NewMessagePool()
 
 type (
@@ -19,6 +21,10 @@ type (
 		GetActionType() string
 		GetDefaultState() string
 		Handle(msg Message, res http.ResponseWriter, req *http.Request, messagePool *MessagePool)
+	}
+	ProtectedActionHandler interface {
+		ActionHandler
+		Authorized(msg Message, res http.ResponseWriter, req *http.Request, messagePool *MessagePool) error
 	}
 	Config struct {
 		EventUrl                string
@@ -45,12 +51,12 @@ func Register(router *http.ServeMux, config *Config) {
 
 func setupScripts(router *http.ServeMux, config *Config) {
 	router.HandleFunc("/alpinestorehandler_lib.js", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Add("Content-Type", "application/javascript")
+		w.Header().Add(ContentTypeKey, "application/javascript")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(getJsScript()))
 	})
 	router.HandleFunc("/alpinestorehandler_app.js", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Add("Content-Type", "application/javascript")
+		w.Header().Add(ContentTypeKey, "application/javascript")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(getAppScript(*config)))
 	})
@@ -58,7 +64,7 @@ func setupScripts(router *http.ServeMux, config *Config) {
 
 func setupOutgoing(router *http.ServeMux, config *Config) {
 	router.HandleFunc(fmt.Sprintf("GET %s", config.EventUrl), func(res http.ResponseWriter, req *http.Request) {
-		res.Header().Set("Content-Type", "text/event-stream")
+		res.Header().Set(ContentTypeKey, "text/event-stream")
 		res.Header().Set("Cache-Control", "no-cache")
 		res.Header().Set("Connection", "keep-alive")
 

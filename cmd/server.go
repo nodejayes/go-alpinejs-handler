@@ -25,6 +25,10 @@ func (ctx *CounterHandler) GetActionType() string {
 	return fmt.Sprintf("[%s] operation", ctx.GetName())
 }
 
+func (ctx *CounterHandler) Authorized(msg goalpinejshandler.Message, res http.ResponseWriter, req *http.Request, messagePool *goalpinejshandler.MessagePool) error {
+	return nil
+}
+
 func (ctx *CounterHandler) GetDefaultState() string {
 	stream, err := json.Marshal(ctx)
 	if err != nil {
