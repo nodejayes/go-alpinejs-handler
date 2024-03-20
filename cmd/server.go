@@ -25,7 +25,7 @@ func (ctx *CounterHandler) GetActionType() string {
 	return fmt.Sprintf("[%s] operation", ctx.GetName())
 }
 
-func (ctx *CounterHandler) Authorized(msg goalpinejshandler.Message, res http.ResponseWriter, req *http.Request, messagePool *goalpinejshandler.MessagePool) error {
+func (ctx *CounterHandler) Authorized(msg goalpinejshandler.Message, res http.ResponseWriter, req *http.Request, messagePool *goalpinejshandler.MessagePool, tools *goalpinejshandler.Tools) error {
 	return nil
 }
 
@@ -37,7 +37,7 @@ func (ctx *CounterHandler) GetDefaultState() string {
 	return string(stream)
 }
 
-func (ctx *CounterHandler) Handle(msg goalpinejshandler.Message, res http.ResponseWriter, req *http.Request, messagePool *goalpinejshandler.MessagePool) {
+func (ctx *CounterHandler) Handle(msg goalpinejshandler.Message, res http.ResponseWriter, req *http.Request, messagePool *goalpinejshandler.MessagePool, tools *goalpinejshandler.Tools) {
 	content, err := json.Marshal(msg.Payload)
 	if err != nil {
 		return
@@ -70,10 +70,9 @@ func main() {
 	router := http.NewServeMux()
 
 	config := goalpinejshandler.Config{
-		ActionUrl:            "/action",
-		EventUrl:             "/events",
-		ClientIDHeaderKey:    "clientId",
-		SendConnectedAfterMs: 100,
+		ActionUrl:         "/action",
+		EventUrl:          "/events",
+		ClientIDHeaderKey: "clientId",
 		Handlers: []goalpinejshandler.ActionHandler{
 			&CounterHandler{},
 		},
@@ -90,7 +89,7 @@ func main() {
 				%s
 			</head>
 			<body>
-				<div x-data="$store.counter.state">
+				<div x-data="$store.counter.state" x-init="$store.counter.emit({operation:'get'})">
 					<span x-text="value"></span>
 				</div>
 				<button x-data @click="$store.counter.emit({operation:'add',value:1})">+</button>

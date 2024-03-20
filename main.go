@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/google/uuid"
 	di "github.com/nodejayes/generic-di"
@@ -20,32 +19,29 @@ type (
 		GetName() string
 		GetActionType() string
 		GetDefaultState() string
-		Handle(msg Message, res http.ResponseWriter, req *http.Request, messagePool *MessagePool)
+		Handle(msg Message, res http.ResponseWriter, req *http.Request, messagePool *MessagePool, tools *Tools)
 	}
 	ProtectedActionHandler interface {
 		ActionHandler
-		Authorized(msg Message, res http.ResponseWriter, req *http.Request, messagePool *MessagePool) error
+		Authorized(msg Message, res http.ResponseWriter, req *http.Request, messagePool *MessagePool, tools *Tools) error
 	}
 	Config struct {
 		EventUrl                string
 		ActionUrl               string
 		ClientIDHeaderKey       string
-		SendConnectedAfterMs    int
 		SocketReconnectInterval int
 		Handlers                []ActionHandler
 	}
 )
 
 func Register(router *http.ServeMux, config *Config) {
-	if config.SendConnectedAfterMs < 1 {
-		config.SendConnectedAfterMs = 500
-	}
 	if config.SocketReconnectInterval < 1 {
 		config.SocketReconnectInterval = 5000
 	}
 	setupOutgoing(router, config)
 	setupIncoming(router, config)
 	setupScripts(router, config)
+	actionProcessor.registerTools(NewTools(config))
 	actionProcessor.registerHandlers(config.Handlers, messagesPool)
 }
 
@@ -88,7 +84,7 @@ func setupOutgoing(router *http.ServeMux, config *Config) {
 			closeLocker.Unlock()
 		}()
 
-		sendConnectedInfo(config, clientID)
+		sendConnectedInfo(clientID)
 
 		for msg := range messagesPool.Pull() {
 			if requestClosed {
@@ -105,9 +101,8 @@ func setupOutgoing(router *http.ServeMux, config *Config) {
 	})
 }
 
-func sendConnectedInfo(config *Config, clientID string) {
+func sendConnectedInfo(clientID string) {
 	go func() {
-		time.Sleep(time.Duration(config.SendConnectedAfterMs) * time.Millisecond)
 		messagesPool.Add(ChannelMessage{
 			Message: Message{
 				Type:    "connected",

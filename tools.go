@@ -7,6 +7,20 @@ import (
 	"strings"
 )
 
+type Tools struct {
+	config *Config
+}
+
+func NewTools(config *Config) *Tools {
+	return &Tools{
+		config: config,
+	}
+}
+
+func (ctx *Tools) GetClientId(req *http.Request) string {
+	return req.Header.Get(ctx.config.ClientIDHeaderKey)
+}
+
 func jsonResponse(res http.ResponseWriter, statusCode int, data any) {
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(statusCode)

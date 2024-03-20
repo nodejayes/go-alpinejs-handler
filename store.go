@@ -47,8 +47,9 @@ func (ctx *clientStore) Remove(client Client) {
 	ctx.m.Lock()
 	defer ctx.m.Unlock()
 
-	if slices.Contains(ctx.Clients[client.ID], client) {
-		ctx.Clients[client.ID] = slices.Delete(ctx.Clients[client.ID], slices.Index(ctx.Clients[client.ID], client), 1)
+	idx := slices.Index(ctx.Clients[client.ID], client)
+	if idx >= 0 {
+		ctx.Clients[client.ID] = append(ctx.Clients[client.ID][:idx], ctx.Clients[client.ID][idx+1:]...)
 	}
 
 	if len(ctx.Clients[client.ID]) < 1 {

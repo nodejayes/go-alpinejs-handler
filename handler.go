@@ -6,9 +6,14 @@ import (
 )
 
 type processor struct {
-	protectors  map[string]func(msg Message, res http.ResponseWriter, req *http.Request, messagePool *MessagePool) error
-	handlers    map[string]func(msg Message, res http.ResponseWriter, req *http.Request, messagePool *MessagePool)
+	tools       *Tools
+	protectors  map[string]func(msg Message, res http.ResponseWriter, req *http.Request, messagePool *MessagePool, tools *Tools) error
+	handlers    map[string]func(msg Message, res http.ResponseWriter, req *http.Request, messagePool *MessagePool, tools *Tools)
 	messagePool *MessagePool
+}
+
+func (ctx *processor) registerTools(tools *Tools) {
+	ctx.tools = tools
 }
 
 func (ctx *processor) dispatch(message Message, res http.ResponseWriter, req *http.Request) error {
@@ -16,12 +21,12 @@ func (ctx *processor) dispatch(message Message, res http.ResponseWriter, req *ht
 	protector := ctx.protectors[message.Type]
 	if handler != nil {
 		if protector != nil {
-			err := protector(message, res, req, ctx.messagePool)
+			err := protector(message, res, req, ctx.messagePool, ctx.tools)
 			if err != nil {
 				return err
 			}
 		}
-		handler(message, res, req, ctx.messagePool)
+		handler(message, res, req, ctx.messagePool, ctx.tools)
 		return nil
 	}
 	return fmt.Errorf("handler %s not found", message.Type)
@@ -39,6 +44,6 @@ func (ctx *processor) registerHandlers(handlers []ActionHandler, messagePool *Me
 }
 
 var actionProcessor = &processor{
-	protectors: make(map[string]func(msg Message, res http.ResponseWriter, req *http.Request, messagePool *MessagePool) error),
-	handlers: make(map[string]func(msg Message, res http.ResponseWriter, req *http.Request, messagePool *MessagePool)),
+	protectors: make(map[string]func(msg Message, res http.ResponseWriter, req *http.Request, messagePool *MessagePool, tools *Tools) error),
+	handlers:   make(map[string]func(msg Message, res http.ResponseWriter, req *http.Request, messagePool *MessagePool, tools *Tools)),
 }
