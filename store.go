@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"sync"
 
 	di "github.com/nodejayes/generic-di"
@@ -21,14 +22,14 @@ type (
 	}
 	clientStore struct {
 		m       *sync.Mutex
-		Clients map[string]Client
+		Clients map[string][]Client
 	}
 )
 
 func newClientStore() *clientStore {
 	return &clientStore{
 		m:       &sync.Mutex{},
-		Clients: make(map[string]Client),
+		Clients: make(map[string][]Client),
 	}
 }
 
@@ -36,21 +37,32 @@ func (ctx *clientStore) Add(client Client) {
 	ctx.m.Lock()
 	defer ctx.m.Unlock()
 
-	ctx.Clients[client.ID] = client
+	if ctx.Clients[client.ID] == nil {
+		ctx.Clients[client.ID] = make([]Client, 0)
+	}
+	ctx.Clients[client.ID] = append(ctx.Clients[client.ID], client)
 }
 
 func (ctx *clientStore) Remove(client Client) {
 	ctx.m.Lock()
 	defer ctx.m.Unlock()
 
-	delete(ctx.Clients, client.ID)
+	if slices.Contains(ctx.Clients[client.ID], client) {
+		ctx.Clients[client.ID] = slices.Delete(ctx.Clients[client.ID], slices.Index(ctx.Clients[client.ID], client), 1)
+	}
+
+	if len(ctx.Clients[client.ID]) < 1 {
+		delete(ctx.Clients, client.ID)
+	}
 }
 
 func (ctx *clientStore) Get(filter func(client Client) bool) []Client {
 	result := make([]Client, 0)
 	for _, cl := range ctx.Clients {
-		if filter(cl) {
-			result = append(result, cl)
+		for _, c := range cl {
+			if filter(c) {
+				result = append(result, c)
+			}
 		}
 	}
 	return result

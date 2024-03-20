@@ -79,7 +79,7 @@ func setupOutgoing(router *http.ServeMux, config *Config) {
 			<-req.Context().Done()
 			closeLocker.Lock()
 			requestClosed = true
-			clients := clientStore.Get(func(client Client) bool { return client.ID == clientID })
+			clients := clientStore.Get(func(client Client) bool { return client.Request == req })
 			if len(clients) > 0 {
 				for _, client := range clients {
 					clientStore.Remove(client)
