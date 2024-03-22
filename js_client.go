@@ -7,6 +7,25 @@ import (
 
 const src = `
 window.alpinestorehandler = {};
+window.alpinestorehandler.applyChanges = function (original, changes) {
+	for (const key of Object.keys(changes)) {
+		if (Array.isArray(original[key])) {
+			for (let i = 0; i < changes[key].length; i++) {
+				if (changes[key][i] && !original[key][i]) {
+					original[key][i] = changes[key][i];
+				} else {
+					window.alpinestorehandler.applyChanges(original[key][i], changes[key][i]);
+				}
+			}
+			continue;
+		}
+		if (typeof original[key] === 'Object') {
+			window.alpinestorehandler.applyChanges(original[key], changes[key]);
+			continue;
+		}
+		original[key] = changes[key];
+	}
+};
 window.alpinestorehandler.eventEmitter = function() {
 	const _events = {};
 	return {
@@ -165,10 +184,7 @@ func writeStore(buf *bytes.Buffer, name, defaultState, actionType string) {
 					window.alpinestorehandler.eventHandler.sendAction({type:'%[3]s', payload});
 				},
 				update(state) {
-					const keys = Object.keys(state);
-					for(let i = 0; i < keys.length; i++) {
-						this.state[keys[i]] = state[keys[i]];
-					}
+					window.alpinestorehandler.applyChanges(this.state, state);
 				}
 			});
 			window.alpinestorehandler.eventHandler.subscribe('[%[1]s] update', (payload) => {

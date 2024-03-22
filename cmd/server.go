@@ -8,8 +8,14 @@ import (
 	goalpinejshandler "github.com/nodejayes/go-alpinejs-handler"
 )
 
+type History struct {
+	ID      int    `json:"id"`
+	Counter string `json:"counter"`
+}
+
 type CounterHandler struct {
-	Value int `json:"value"`
+	Value   int       `json:"value"`
+	History []History `json:"history"`
 }
 
 type CounterHandlerArguments struct {
@@ -50,8 +56,16 @@ func (ctx *CounterHandler) Handle(msg goalpinejshandler.Message, res http.Respon
 
 	switch args.Operation {
 	case "add":
+		ctx.History = append(ctx.History, History{
+			ID:      len(ctx.History) + 1,
+			Counter: fmt.Sprintf("Counter %v", ctx.Value),
+		})
 		ctx.Value += args.Value
 	case "sub":
+		ctx.History = append(ctx.History, History{
+			ID:      len(ctx.History) + 1,
+			Counter: fmt.Sprintf("Counter %v", ctx.Value),
+		})
 		ctx.Value -= args.Value
 	}
 
@@ -74,7 +88,10 @@ func main() {
 		EventUrl:          "/events",
 		ClientIDHeaderKey: "clientId",
 		Handlers: []goalpinejshandler.ActionHandler{
-			&CounterHandler{},
+			&CounterHandler{
+				Value:   0,
+				History: make([]History, 0),
+			},
 		},
 	}
 	goalpinejshandler.Register(router, &config)
@@ -91,6 +108,14 @@ func main() {
 			<body>
 				<div x-data="$store.counter.state" x-init="$store.counter.emit({operation:'get'})">
 					<span x-text="value"></span>
+					<ul>
+						<template x-for="hist in history">
+							<li>
+								<span x-text="hist.id"></span>
+								<span x-text="hist.counter"></span>
+							</li>
+						</template>
+					</ul>
 				</div>
 				<button x-data @click="$store.counter.emit({operation:'add',value:1})">+</button>
 				<button x-data @click="$store.counter.emit({operation:'sub',value:1})">-</button>
