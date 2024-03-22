@@ -17,6 +17,9 @@ window.alpinestorehandler.applyChanges = function (original, changes) {
 					window.alpinestorehandler.applyChanges(original[key][i], changes[key][i]);
 				}
 			}
+			while (original[key].length > changes[key].length) {
+				original[key].pop();
+			}
 			continue;
 		}
 		if (typeof original[key] === 'Object') {

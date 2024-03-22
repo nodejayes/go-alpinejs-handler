@@ -62,11 +62,10 @@ func (ctx *CounterHandler) Handle(msg goalpinejshandler.Message, res http.Respon
 		})
 		ctx.Value += args.Value
 	case "sub":
-		ctx.History = append(ctx.History, History{
-			ID:      len(ctx.History) + 1,
-			Counter: fmt.Sprintf("Counter %v", ctx.Value),
-		})
-		ctx.Value -= args.Value
+		if ctx.Value > 0 {
+			ctx.History = ctx.History[:len(ctx.History)-1]
+			ctx.Value -= args.Value
+		}
 	}
 
 	messagePool.Add(goalpinejshandler.ChannelMessage{
