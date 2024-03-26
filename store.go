@@ -16,9 +16,10 @@ func init() {
 
 type (
 	Client struct {
-		ID       string
-		Response http.ResponseWriter
-		Request  *http.Request
+		ID           string
+		ConnectionID string
+		Response     http.ResponseWriter
+		Request      *http.Request
 	}
 	clientStore struct {
 		m       *sync.Mutex

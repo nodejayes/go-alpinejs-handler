@@ -2,6 +2,7 @@ package goalpinejshandler
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 )
 
@@ -165,10 +166,19 @@ func getAppScript(config Config) string {
 	`, config.ActionUrl, config.EventUrl, config.ClientIDHeaderKey, config.SocketReconnectInterval))
 	buf.WriteString("document.addEventListener('alpine:init', () => {")
 	for _, h := range config.Handlers {
-		writeStore(buf, h.GetName(), h.GetDefaultState(), h.GetActionType())
+		writeStore(buf, h.GetName(), parseDefaultState(h), h.GetActionType())
 	}
 	buf.WriteString("});")
 	return buf.String()
+}
+
+func parseDefaultState(handler ActionHandler) string {
+	stream, err := json.Marshal(handler.GetDefaultState())
+	if err != nil {
+		println(fmt.Sprintf("error on get DefaultState of Handler %s: %s", handler.GetName(), err.Error()))
+		return "{}"
+	}
+	return string(stream)
 }
 
 func HeadScripts() string {

@@ -18,12 +18,15 @@ type (
 	ActionHandler interface {
 		GetName() string
 		GetActionType() string
-		GetDefaultState() string
+		GetDefaultState() any
 		Handle(msg Message, res http.ResponseWriter, req *http.Request, messagePool *MessagePool, tools *Tools)
 	}
 	ProtectedActionHandler interface {
 		ActionHandler
 		Authorized(msg Message, res http.ResponseWriter, req *http.Request, messagePool *MessagePool, tools *Tools) error
+	}
+	DestroyableHandler interface {
+		OnDestroy(clientId string)
 	}
 	Config struct {
 		EventUrl                string
@@ -63,8 +66,9 @@ func setupOutgoing(router *http.ServeMux, config *Config) {
 		res.Header().Set(ContentTypeKey, "text/event-stream")
 		res.Header().Set("Cache-Control", "no-cache")
 		res.Header().Set("Connection", "keep-alive")
+		connectionID := uuid.NewString()
 
-		clientStore, clientID, failRegisterInClient := registerInClientStore(req, config, res)
+		clientStore, clientID, failRegisterInClient := registerInClientStore(req, config, res, connectionID)
 		if failRegisterInClient {
 			return
 		}
@@ -75,10 +79,21 @@ func setupOutgoing(router *http.ServeMux, config *Config) {
 			<-req.Context().Done()
 			closeLocker.Lock()
 			requestClosed = true
-			clients := clientStore.Get(func(client Client) bool { return client.Request == req })
+			clients := clientStore.Get(func(client Client) bool { return client.ConnectionID == connectionID })
 			if len(clients) > 0 {
 				for _, client := range clients {
 					clientStore.Remove(client)
+				}
+			}
+			clientIDClients := clientStore.Get(func(client Client) bool {
+				return client.ID == clientID
+			})
+			if len(clientIDClients) < 1 {
+				for _, handler := range config.Handlers {
+					destroyableHandler, ok := handler.(DestroyableHandler)
+					if ok {
+						destroyableHandler.OnDestroy(clientID)
+					}
 				}
 			}
 			closeLocker.Unlock()
@@ -115,7 +130,7 @@ func sendConnectedInfo(clientID string) {
 	}()
 }
 
-func registerInClientStore(req *http.Request, config *Config, res http.ResponseWriter) (*clientStore, string, bool) {
+func registerInClientStore(req *http.Request, config *Config, res http.ResponseWriter, connectionID string) (*clientStore, string, bool) {
 	clientStore := di.Inject[clientStore]()
 	clientID := req.URL.Query().Get(config.ClientIDHeaderKey)
 	_, err := uuid.Parse(clientID)
@@ -127,9 +142,10 @@ func registerInClientStore(req *http.Request, config *Config, res http.ResponseW
 		return nil, "", true
 	}
 	clientStore.Add(Client{
-		ID:       clientID,
-		Response: res,
-		Request:  req,
+		ID:           clientID,
+		ConnectionID: connectionID,
+		Response:     res,
+		Request:      req,
 	})
 	return clientStore, clientID, false
 }

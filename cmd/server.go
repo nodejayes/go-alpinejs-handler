@@ -35,12 +35,14 @@ func (ctx *CounterHandler) Authorized(msg goalpinejshandler.Message, res http.Re
 	return nil
 }
 
-func (ctx *CounterHandler) GetDefaultState() string {
-	stream, err := json.Marshal(ctx)
-	if err != nil {
-		return ""
-	}
-	return string(stream)
+func (ctx *CounterHandler) OnDestroy(clientID string) {
+	println(fmt.Sprintf("clientID: %s disconnected clear up something here", clientID))
+	ctx.Value = 0
+	ctx.History = make([]History, 0)
+}
+
+func (ctx *CounterHandler) GetDefaultState() any {
+	return ctx
 }
 
 func (ctx *CounterHandler) Handle(msg goalpinejshandler.Message, res http.ResponseWriter, req *http.Request, messagePool *goalpinejshandler.MessagePool, tools *goalpinejshandler.Tools) {
