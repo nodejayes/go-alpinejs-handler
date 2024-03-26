@@ -52,12 +52,20 @@ func setupScripts(router *http.ServeMux, config *Config) {
 	router.HandleFunc("/alpinestorehandler_lib.js", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add(ContentTypeKey, "application/javascript")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(getJsScript()))
+		_, err := w.Write([]byte(getJsScript()))
+		if err != nil {
+			w.Header().Add(ContentTypeKey, "text/plain")
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 	})
 	router.HandleFunc("/alpinestorehandler_app.js", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add(ContentTypeKey, "application/javascript")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(getAppScript(*config)))
+		_, err := w.Write([]byte(getAppScript(*config)))
+		if err != nil {
+			w.Header().Add(ContentTypeKey, "text/plain")
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 	})
 }
 

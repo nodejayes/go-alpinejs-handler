@@ -80,7 +80,11 @@ func (ctx *Client) SendMessage(msg ChannelMessage) {
 		fmt.Println(err.Error())
 		return
 	}
-	ctx.Response.Write([]byte(data))
+	_, err = ctx.Response.Write([]byte(data))
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
 	rc := http.NewResponseController(ctx.Response)
 	err = rc.Flush()
 	if err != nil {
