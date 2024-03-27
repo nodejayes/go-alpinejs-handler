@@ -1,8 +1,10 @@
 package goalpinejshandler
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"net/http"
 	"sync"
 
@@ -15,6 +17,15 @@ const ContentTypeKey = "Content-Type"
 var messagesPool = NewMessagePool()
 
 type (
+	Template interface {
+		Name() string
+		Render() string
+	}
+	Page interface {
+		Template
+		Route() string
+		Handlers() []ActionHandler
+	}
 	ActionHandler interface {
 		GetName() string
 		GetActionType() string
@@ -33,7 +44,7 @@ type (
 		ActionUrl               string
 		ClientIDHeaderKey       string
 		SocketReconnectInterval int
-		Handlers                []ActionHandler
+		Pages                   []Page
 	}
 )
 
@@ -43,30 +54,38 @@ func Register(router *http.ServeMux, config *Config) {
 	}
 	setupOutgoing(router, config)
 	setupIncoming(router, config)
-	setupScripts(router, config)
 	actionProcessor.registerTools(NewTools(config))
-	actionProcessor.registerHandlers(config.Handlers, messagesPool)
+	for _, page := range config.Pages {
+		actionProcessor.registerHandlers(page.Handlers(), messagesPool)
+		router.HandleFunc(page.Route(), usePage(page, config))
+	}
 }
 
-func setupScripts(router *http.ServeMux, config *Config) {
-	router.HandleFunc("/alpinestorehandler_lib.js", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Add(ContentTypeKey, "application/javascript")
-		w.WriteHeader(http.StatusOK)
-		_, err := w.Write([]byte(getJsScript()))
+func usePage(page Page, config *Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		buf := bytes.NewBuffer([]byte{})
+		tmpl, err := template.New(page.Name()).Parse(page.Render())
 		if err != nil {
-			w.Header().Add(ContentTypeKey, "text/plain")
-			w.WriteHeader(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte{})
+			return
 		}
-	})
-	router.HandleFunc("/alpinestorehandler_app.js", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Add(ContentTypeKey, "application/javascript")
-		w.WriteHeader(http.StatusOK)
-		_, err := w.Write([]byte(getAppScript(*config)))
+		tmpl = addScriptTemplates(tmpl, config, page.Handlers())
+		err = tmpl.ExecuteTemplate(buf, page.Name(), page)
 		if err != nil {
-			w.Header().Add(ContentTypeKey, "text/plain")
-			w.WriteHeader(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte{})
+			return
 		}
-	})
+		w.Header().Add("Content-Type", "text/html")
+		w.WriteHeader(http.StatusOK)
+		_, err = w.Write(buf.Bytes())
+		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte{})
+			return
+		}
+	}
 }
 
 func setupOutgoing(router *http.ServeMux, config *Config) {
@@ -97,10 +116,12 @@ func setupOutgoing(router *http.ServeMux, config *Config) {
 				return client.ID == clientID
 			})
 			if len(clientIDClients) < 1 {
-				for _, handler := range config.Handlers {
-					destroyableHandler, ok := handler.(DestroyableHandler)
-					if ok {
-						destroyableHandler.OnDestroy(clientID)
+				for _, page := range config.Pages {
+					for _, handler := range page.Handlers() {
+						destroyableHandler, ok := handler.(DestroyableHandler)
+						if ok {
+							destroyableHandler.OnDestroy(clientID)
+						}
 					}
 				}
 			}

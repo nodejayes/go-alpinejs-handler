@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"html/template"
 )
 
 const src = `
+{{ define "alpinejs_handler_lib" }}
+<script>
 window.alpinestorehandler = {};
 window.alpinestorehandler.applyChanges = function (original, changes) {
 	for (const key of Object.keys(changes)) {
@@ -149,14 +152,18 @@ window.alpinestorehandler.eventHandler = (function() {
 		}
 	};
 })();
+</script>
+{{ end }}
 `
 
 func getJsScript() string {
 	return src
 }
 
-func getAppScript(config Config) string {
+func getAppScript(config *Config, handlers []ActionHandler) string {
 	buf := bytes.NewBuffer([]byte{})
+	buf.WriteString(`{{ define "alpinejs_handler_stores" }}`)
+	buf.WriteString("<script>")
 	buf.WriteString(fmt.Sprintf(`window.alpinestorehandler.eventHandler.open({
 		actionUrl: '%s',
 		eventUrl: '%s',
@@ -165,10 +172,12 @@ func getAppScript(config Config) string {
 	});
 	`, config.ActionUrl, config.EventUrl, config.ClientIDHeaderKey, config.SocketReconnectInterval))
 	buf.WriteString("document.addEventListener('alpine:init', () => {")
-	for _, h := range config.Handlers {
+	for _, h := range handlers {
 		writeStore(buf, h.GetName(), parseDefaultState(h), h.GetActionType())
 	}
 	buf.WriteString("});")
+	buf.WriteString("</script>")
+	buf.WriteString("{{ end }}")
 	return buf.String()
 }
 
@@ -181,12 +190,10 @@ func parseDefaultState(handler ActionHandler) string {
 	return string(stream)
 }
 
-func HeadScripts() string {
-	return `
+func headScripts() string {
+	return `{{ define "alpinejs" }}
 	<script src="//unpkg.com/alpinejs" defer></script>
-	<script src="/alpinestorehandler_lib.js"></script>
-	<script src="/alpinestorehandler_app.js"></script>
-	`
+	{{ end }}`
 }
 
 func writeStore(buf *bytes.Buffer, name, defaultState, actionType string) {
@@ -204,4 +211,12 @@ func writeStore(buf *bytes.Buffer, name, defaultState, actionType string) {
 				Alpine.store('%[1]s').update(payload);
 			});
 		`, name, defaultState, actionType))
+}
+
+func addScriptTemplates(tmpl *template.Template, config *Config, handlers []ActionHandler) *template.Template {
+	t := template.Must(tmpl, nil)
+	t = template.Must(t.Parse(headScripts()))
+	t = template.Must(t.Parse(getJsScript()))
+	t = template.Must(t.Parse(getAppScript(config, handlers)))
+	return t
 }
