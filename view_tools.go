@@ -3,6 +3,7 @@ package goalpinejshandler
 import (
 	"bytes"
 	"fmt"
+	di "github.com/nodejayes/generic-di"
 	"html/template"
 )
 
@@ -16,4 +17,8 @@ func (ctx *ViewTools) Paint(tmpl Template) template.HTML {
 		return template.HTML(fmt.Sprintf("<p>Error on Render Template: %s</p>", err.Error()))
 	}
 	return template.HTML(buf.String())
+}
+
+func (ctx *ViewTools) Styles() template.HTML {
+	return template.HTML(di.Inject[StyleRegistry]().Build())
 }

@@ -2,18 +2,36 @@ package counter
 
 import (
 	"fmt"
+	di "github.com/nodejayes/generic-di"
 	goalpinejshandler "github.com/nodejayes/go-alpinejs-handler"
 	"github.com/nodejayes/go-alpinejs-handler/cmd/components"
 )
 
 type Page struct {
 	goalpinejshandler.ViewTools
-	CustomButton goalpinejshandler.Template
+	CustomButton1 goalpinejshandler.Template
+	CustomButton2 goalpinejshandler.Template
+}
+
+func style() string {
+	return `
+	* {
+	  font-family: system-ui;
+	  font-size: 15px;
+	  margin: 0;
+	  padding: 0;
+	}
+	html, body {
+	  width: 100vw;
+	  height: 100vh;
+	}`
 }
 
 func NewPage() *Page {
+	di.Inject[goalpinejshandler.StyleRegistry]().Register(style())
 	return &Page{
-		CustomButton: components.NewButton("Custom Button"),
+		CustomButton1: components.NewButton("Custom Button 1"),
+		CustomButton2: components.NewButton("Custom Button 2"),
 	}
 }
 
@@ -43,6 +61,7 @@ func (ctx *Page) Render() string {
 				{{ template "alpinejs" }}
 				{{ template "alpinejs_handler_lib" }}
 				{{ template "alpinejs_handler_stores" }}
+				{{ .Styles }}
 			</head>
 			<body>
 				<div x-data="$store.counter.state" x-init="$store.counter.emit({operation:'get'})">
@@ -58,7 +77,8 @@ func (ctx *Page) Render() string {
 				</div>
 				<button x-data @click="$store.counter.emit({operation:'add',value:1})">+</button>
 				<button x-data @click="$store.counter.emit({operation:'sub',value:1})">-</button>
-				{{ .Paint .CustomButton }}
+				{{ .Paint .CustomButton1 }}
+				{{ .Paint .CustomButton2 }}
 			</body>
 		</html>
 `

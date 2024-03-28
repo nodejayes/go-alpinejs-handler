@@ -1,6 +1,16 @@
 package components
 
-import goalpinejshandler "github.com/nodejayes/go-alpinejs-handler"
+import (
+	di "github.com/nodejayes/generic-di"
+	goalpinejshandler "github.com/nodejayes/go-alpinejs-handler"
+)
+
+func style() string {
+	return `
+	button.primary {
+		background-color: red;
+	}`
+}
 
 type Button struct {
 	goalpinejshandler.ViewTools
@@ -8,6 +18,7 @@ type Button struct {
 }
 
 func NewButton(label string) *Button {
+	di.Inject[goalpinejshandler.StyleRegistry]().Register(style())
 	return &Button{
 		Label: NewText(label),
 	}
@@ -18,5 +29,5 @@ func (ctx *Button) Name() string {
 }
 
 func (ctx *Button) Render() string {
-	return `<button>{{ .Paint .Label }}</button>`
+	return `<button class="primary">{{ .Paint .Label }}</button>`
 }
