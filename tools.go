@@ -33,7 +33,7 @@ func jsonResponse(res http.ResponseWriter, statusCode int, data any) {
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(statusCode)
 	str, _ := json.Marshal(data)
-	res.Write(str)
+	_, _ = res.Write(str)
 }
 
 func formatMessage(data string) (string, error) {
