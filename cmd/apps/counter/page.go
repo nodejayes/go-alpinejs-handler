@@ -2,15 +2,16 @@ package counter
 
 import (
 	"fmt"
-	di "github.com/nodejayes/generic-di"
 	goalpinejshandler "github.com/nodejayes/go-alpinejs-handler"
 	"github.com/nodejayes/go-alpinejs-handler/cmd/components"
 )
 
+const pageId = "counter"
+
 type Page struct {
 	goalpinejshandler.ViewTools
-	CustomButton1 goalpinejshandler.Template
-	CustomButton2 goalpinejshandler.Template
+	CustomButton1 goalpinejshandler.Component
+	CustomButton2 goalpinejshandler.Component
 }
 
 func style() string {
@@ -28,7 +29,7 @@ func style() string {
 }
 
 func NewPage() *Page {
-	di.Inject[goalpinejshandler.StyleRegistry]().Register(style())
+	goalpinejshandler.RegisterStyle(pageId, style())
 	return &Page{
 		CustomButton1: components.NewButton("Custom Button 1"),
 		CustomButton2: components.NewButton("Custom Button 2"),
@@ -36,7 +37,7 @@ func NewPage() *Page {
 }
 
 func (ctx *Page) Name() string {
-	return "counter"
+	return pageId
 }
 
 func (ctx *Page) Route() string {
@@ -61,7 +62,8 @@ func (ctx *Page) Render() string {
 				{{ template "alpinejs" }}
 				{{ template "alpinejs_handler_lib" }}
 				{{ template "alpinejs_handler_stores" }}
-				{{ .Styles }}
+				{{ .Style }}
+				{{ .Style "counter" }}
 			</head>
 			<body>
 				<div x-data="$store.counter.state" x-init="$store.counter.emit({operation:'get'})">

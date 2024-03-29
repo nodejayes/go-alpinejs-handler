@@ -10,7 +10,7 @@ type (
 	}
 )
 
-func NewMessagePool() *MessagePool {
+func newMessagePool() *MessagePool {
 	return &MessagePool{
 		messages: make(chan ChannelMessage),
 	}

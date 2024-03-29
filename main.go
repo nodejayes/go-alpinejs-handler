@@ -14,15 +14,15 @@ import (
 
 const ContentTypeKey = "Content-Type"
 
-var messagesPool = NewMessagePool()
+var messagesPool = newMessagePool()
 
 type (
-	Template interface {
+	Component interface {
 		Name() string
 		Render() string
 	}
 	Page interface {
-		Template
+		Component
 		Route() string
 		Handlers() []ActionHandler
 	}
@@ -32,11 +32,11 @@ type (
 		GetDefaultState() any
 		Handle(msg Message, res http.ResponseWriter, req *http.Request, messagePool *MessagePool, tools *Tools)
 	}
-	ProtectedActionHandler interface {
+	protectedActionHandler interface {
 		ActionHandler
 		Authorized(msg Message, res http.ResponseWriter, req *http.Request, messagePool *MessagePool, tools *Tools) error
 	}
-	DestroyableHandler interface {
+	destroyableHandler interface {
 		OnDestroy(clientId string)
 	}
 	Config struct {
@@ -54,11 +54,19 @@ func Register(router *http.ServeMux, config *Config) {
 	}
 	setupOutgoing(router, config)
 	setupIncoming(router, config)
-	actionProcessor.registerTools(NewTools(config))
+	actionProcessor.registerTools(newTools(config))
 	for _, page := range config.Pages {
 		actionProcessor.registerHandlers(page.Handlers(), messagesPool)
 		router.HandleFunc(page.Route(), usePage(page, config))
 	}
+}
+
+func RegisterGlobalStyle(style string) {
+	di.Inject[styleRegistry]("global").Register(style)
+}
+
+func RegisterStyle(name, style string) {
+	di.Inject[styleRegistry](name).Register(style)
 }
 
 func usePage(page Page, config *Config) http.HandlerFunc {
@@ -118,7 +126,7 @@ func setupOutgoing(router *http.ServeMux, config *Config) {
 			if len(clientIDClients) < 1 {
 				for _, page := range config.Pages {
 					for _, handler := range page.Handlers() {
-						destroyableHandler, ok := handler.(DestroyableHandler)
+						destroyableHandler, ok := handler.(destroyableHandler)
 						if ok {
 							destroyableHandler.OnDestroy(clientID)
 						}

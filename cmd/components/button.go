@@ -1,7 +1,6 @@
 package components
 
 import (
-	di "github.com/nodejayes/generic-di"
 	goalpinejshandler "github.com/nodejayes/go-alpinejs-handler"
 )
 
@@ -14,11 +13,11 @@ func style() string {
 
 type Button struct {
 	goalpinejshandler.ViewTools
-	Label goalpinejshandler.Template
+	Label goalpinejshandler.Component
 }
 
 func NewButton(label string) *Button {
-	di.Inject[goalpinejshandler.StyleRegistry]().Register(style())
+	goalpinejshandler.RegisterGlobalStyle(style())
 	return &Button{
 		Label: NewText(label),
 	}

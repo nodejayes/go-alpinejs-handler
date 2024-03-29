@@ -9,16 +9,23 @@ import (
 
 type ViewTools struct{}
 
-func (ctx *ViewTools) Paint(tmpl Template) template.HTML {
+func (ctx *ViewTools) Paint(tmpl Component) template.HTML {
 	buf := bytes.NewBuffer([]byte{})
 	t := template.Must(template.New(tmpl.Name()).Parse(tmpl.Render()))
 	err := t.Execute(buf, tmpl)
 	if err != nil {
-		return template.HTML(fmt.Sprintf("<p>Error on Render Template: %s</p>", err.Error()))
+		return template.HTML(fmt.Sprintf("<p>Error on Render Component: %s</p>", err.Error()))
 	}
 	return template.HTML(buf.String())
 }
 
-func (ctx *ViewTools) Styles() template.HTML {
-	return template.HTML(di.Inject[StyleRegistry]().Build())
+func (ctx *ViewTools) Style(names ...string) template.HTML {
+	if len(names) < 1 {
+		return template.HTML(di.Inject[styleRegistry]("global").Build())
+	}
+	buf := bytes.NewBuffer([]byte{})
+	for _, name := range names {
+		buf.WriteString(di.Inject[styleRegistry](name).Build())
+	}
+	return template.HTML(buf.String())
 }

@@ -11,7 +11,7 @@ type Tools struct {
 	config *Config
 }
 
-func NewTools(config *Config) *Tools {
+func newTools(config *Config) *Tools {
 	return &Tools{
 		config: config,
 	}

@@ -8,22 +8,22 @@ import (
 )
 
 func init() {
-	di.Injectable(NewStyleRegistry)
+	di.Injectable(newStyleRegistry)
 }
 
-type StyleRegistry struct {
+type styleRegistry struct {
 	m      *sync.Mutex
 	styles []string
 }
 
-func NewStyleRegistry() *StyleRegistry {
-	return &StyleRegistry{
+func newStyleRegistry() *styleRegistry {
+	return &styleRegistry{
 		m:      &sync.Mutex{},
 		styles: make([]string, 0),
 	}
 }
 
-func (ctx *StyleRegistry) Register(style string) {
+func (ctx *styleRegistry) Register(style string) {
 	ctx.m.Lock()
 	defer ctx.m.Unlock()
 
@@ -36,7 +36,7 @@ func (ctx *StyleRegistry) Register(style string) {
 	ctx.styles = append(ctx.styles, style)
 }
 
-func (ctx *StyleRegistry) Build() string {
+func (ctx *styleRegistry) Build() string {
 	ctx.m.Lock()
 	defer ctx.m.Unlock()
 

@@ -36,7 +36,7 @@ func (ctx *processor) registerHandlers(handlers []ActionHandler, messagePool *Me
 	ctx.messagePool = messagePool
 	for _, handler := range handlers {
 		ctx.handlers[handler.GetActionType()] = handler.Handle
-		protectedHandler, ok := handler.(ProtectedActionHandler)
+		protectedHandler, ok := handler.(protectedActionHandler)
 		if ok {
 			ctx.protectors[protectedHandler.GetActionType()] = protectedHandler.Authorized
 		}
