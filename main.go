@@ -15,6 +15,7 @@ import (
 const ContentTypeKey = "Content-Type"
 
 var messagesPool = newMessagePool()
+var tools = &Tools{}
 
 type (
 	Component interface {
@@ -37,7 +38,7 @@ type (
 		Authorized(msg Message, res http.ResponseWriter, req *http.Request, messagePool *MessagePool, tools *Tools) error
 	}
 	destroyableHandler interface {
-		OnDestroy(clientId string)
+		OnDestroy(clientId string, tools *Tools)
 	}
 	Config struct {
 		EventUrl                string
@@ -52,9 +53,10 @@ func Register(router *http.ServeMux, config *Config) {
 	if config.SocketReconnectInterval < 1 {
 		config.SocketReconnectInterval = 5000
 	}
+	tools = newTools(config)
 	setupOutgoing(router, config)
 	setupIncoming(router, config)
-	actionProcessor.registerTools(newTools(config))
+	actionProcessor.registerTools(tools)
 	for _, page := range config.Pages {
 		actionProcessor.registerHandlers(page.Handlers(), messagesPool)
 		router.HandleFunc(page.Route(), usePage(page, config))
@@ -103,7 +105,7 @@ func setupOutgoing(router *http.ServeMux, config *Config) {
 		res.Header().Set("Connection", "keep-alive")
 		connectionID := uuid.NewString()
 
-		clientStore, clientID, failRegisterInClient := registerInClientStore(req, config, res, connectionID)
+		cls, clientID, failRegisterInClient := registerInClientStore(req, config, res, connectionID)
 		if failRegisterInClient {
 			return
 		}
@@ -114,21 +116,21 @@ func setupOutgoing(router *http.ServeMux, config *Config) {
 			<-req.Context().Done()
 			closeLocker.Lock()
 			requestClosed = true
-			clients := clientStore.Get(func(client Client) bool { return client.ConnectionID == connectionID })
+			clients := cls.Get(func(client Client) bool { return client.ConnectionID == connectionID })
 			if len(clients) > 0 {
 				for _, client := range clients {
-					clientStore.Remove(client)
+					cls.Remove(client)
 				}
 			}
-			clientIDClients := clientStore.Get(func(client Client) bool {
+			clientIDClients := cls.Get(func(client Client) bool {
 				return client.ID == clientID
 			})
 			if len(clientIDClients) < 1 {
 				for _, page := range config.Pages {
 					for _, handler := range page.Handlers() {
-						destroyableHandler, ok := handler.(destroyableHandler)
+						dh, ok := handler.(destroyableHandler)
 						if ok {
-							destroyableHandler.OnDestroy(clientID)
+							dh.OnDestroy(clientID, tools)
 						}
 					}
 				}
@@ -142,7 +144,7 @@ func setupOutgoing(router *http.ServeMux, config *Config) {
 			if requestClosed {
 				return
 			}
-			client := clientStore.Get(msg.ClientFilter)
+			client := cls.Get(msg.ClientFilter)
 			if len(client) < 1 {
 				continue
 			}
