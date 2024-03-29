@@ -3,6 +3,7 @@ package goalpinejshandler
 import (
 	"encoding/json"
 	"fmt"
+	di "github.com/nodejayes/generic-di"
 	"net/http"
 	"strings"
 )
@@ -19,6 +20,13 @@ func newTools(config *Config) *Tools {
 
 func (ctx *Tools) GetClientId(req *http.Request) string {
 	return req.Header.Get(ctx.config.ClientIDHeaderKey)
+}
+
+func (ctx *Tools) HasConnections(clientID string) bool {
+	cls := di.Inject[clientStore]()
+	return len(cls.Get(func(client Client) bool {
+		return client.ID == clientID
+	})) > 0
 }
 
 func jsonResponse(res http.ResponseWriter, statusCode int, data any) {

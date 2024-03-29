@@ -168,7 +168,7 @@ func sendConnectedInfo(clientID string) {
 }
 
 func registerInClientStore(req *http.Request, config *Config, res http.ResponseWriter, connectionID string) (*clientStore, string, bool) {
-	clientStore := di.Inject[clientStore]()
+	cls := di.Inject[clientStore]()
 	clientID := req.URL.Query().Get(config.ClientIDHeaderKey)
 	_, err := uuid.Parse(clientID)
 	if err != nil {
@@ -178,13 +178,13 @@ func registerInClientStore(req *http.Request, config *Config, res http.ResponseW
 		})
 		return nil, "", true
 	}
-	clientStore.Add(Client{
+	cls.Add(Client{
 		ID:           clientID,
 		ConnectionID: connectionID,
 		Response:     res,
 		Request:      req,
 	})
-	return clientStore, clientID, false
+	return cls, clientID, false
 }
 
 func setupIncoming(router *http.ServeMux, config *Config) {
