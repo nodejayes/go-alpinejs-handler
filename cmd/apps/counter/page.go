@@ -66,6 +66,7 @@ func (ctx *Page) Render() string {
 				{{ .Style "counter" }}
 			</head>
 			<body>
+				<h1>Überflieger</h1>
 				<div x-data="$store.counter.state" x-init="$store.counter.emit({operation:'get'})">
 					<span x-text="value"></span>
 					<ul>
